@@ -29,6 +29,8 @@ DEALINGS IN THE SOFTWARE.
   * Display, e.g. on an LED matrix display.
   */
 
+#warning "using isaksenej codal-core"
+
 #include "AnimatedDisplay.h"
 #include "CodalFiber.h"
 #include "NotifyEvents.h"
@@ -576,7 +578,7 @@ int AnimatedDisplay::scrollAsync(ManagedString s, int delay)
     {
         scrollingPosition = 0;
         scrollingChar = 0;
-        scrollingText = s;
+        scrollingText = '!'+s; // checks that we're using my codal-core code
 
         animationDelay = delay;
         animationTick = 0;
