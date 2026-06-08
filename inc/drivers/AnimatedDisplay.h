@@ -32,6 +32,9 @@ DEALINGS IN THE SOFTWARE.
   * Event codes raised by a Display
   */
 #define DISPLAY_EVT_ANIMATION_COMPLETE          1
+// new events: 
+#define DISPLAY_EVT_ANIMATION_STARTED           2
+#define DISPLAY_EVT_ANIMATION_STOPPED           3 // prematurely stopped - could maybe instead just use ANIMATION_MODE_COMPLETED? but then you'd have to handle every completed event and check status, which we probably don't want
 
 //
 // Internal constants
@@ -69,7 +72,8 @@ namespace codal
         ANIMATION_MODE_SCROLL_IMAGE,
         ANIMATION_MODE_ANIMATE_IMAGE,
         ANIMATION_MODE_ANIMATE_IMAGE_WITH_CLEAR,
-        ANIMATION_MODE_PRINT_CHARACTER
+        ANIMATION_MODE_PRINT_CHARACTER,
+        ANIMATION_MODE_PRINT_IMAGE
     };
 
     /**
@@ -141,6 +145,19 @@ namespace codal
 
         // Flag to indicate if image has been rendered to screen yet (or not)
         bool scrollingImageRendered;
+
+        // The label of the image being displayed.
+        ManagedString scrollingImageName; 
+
+        //
+        // State for printImage() method.
+        //
+        // The label of the image being displayed.
+        // as with text:
+        // We *could* get some reuse in here with the scroll* variables above,
+        // but best to keep it clean in case kids try concurrent operation (they will!),
+        // given the small RAM overhead needed to maintain orthogonality.
+        ManagedString printingImageName; 
 
         private:
         // Internal methods to handle animation.
@@ -265,13 +282,17 @@ namespace codal
          * @param alpha Treats the brightness level '0' as transparent. Defaults to 0.
          *
          * @param delay The time to delay between characters, in milliseconds. Defaults to 0.
+         * 
+         * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
+         * 
+         * TODO: update code snippet (I think it's straight-up wrong atm anyway)
          *
          * @code
          * Image i("1,1,1,1,1\n1,1,1,1,1\n");
          * display.printAsync(i,400);
          * @endcode
          */
-        int printAsync(Image i, int x = 0, int y = 0, int alpha = 0, int delay = 0);
+        int printAsync(Image i, int x = 0, int y = 0, int alpha = 0, int delay = 0, ManagedString imageName = "Unnamed image");
 
         /**
          * Prints the given character to the display.
@@ -321,6 +342,8 @@ namespace codal
          * @param alpha Treats the brightness level '0' as transparent. Defaults to 0.
          *
          * @param delay The time to display the image for, or zero to show the image forever. Defaults to 0.
+         * 
+         * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
          *
          * @return DEVICE_OK, DEVICE_BUSY if the display is already in use, or DEVICE_INVALID_PARAMETER.
          *
@@ -329,7 +352,7 @@ namespace codal
          * display.print(i,400);
          * @endcode
          */
-        int print(Image i, int x = 0, int y = 0, int alpha = 0, int delay = 0);
+        int print(Image i, int x = 0, int y = 0, int alpha = 0, int delay = 0, ManagedString imageName = "Unnamed image");
 
         /**
          * Scrolls the given string to the display, from right to left.
@@ -358,6 +381,8 @@ namespace codal
          *              to: DISPLAY_DEFAULT_SCROLL_SPEED.
          *
          * @param stride The number of pixels to shift by in each update. Defaults to DISPLAY_DEFAULT_SCROLL_STRIDE.
+         * 
+         * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
          *
          * @return DEVICE_OK, DEVICE_BUSY if the display is already in use, or DEVICE_INVALID_PARAMETER.
          *
@@ -366,7 +391,7 @@ namespace codal
          * display.scrollAsync(i,100,1);
          * @endcode
          */
-        int scrollAsync(Image image, int delay = DISPLAY_DEFAULT_SCROLL_SPEED, int stride = DISPLAY_DEFAULT_SCROLL_STRIDE);
+        int scrollAsync(Image image, int delay = DISPLAY_DEFAULT_SCROLL_SPEED, int stride = DISPLAY_DEFAULT_SCROLL_STRIDE, ManagedString imageName = "Unnamed image");
 
         /**
          * Scrolls the given string across the display, from right to left.
@@ -395,6 +420,8 @@ namespace codal
          *              to: DISPLAY_DEFAULT_SCROLL_SPEED.
          *
          * @param stride The number of pixels to shift by in each update. Defaults to DISPLAY_DEFAULT_SCROLL_STRIDE.
+         * 
+         * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
          *
          * @return DEVICE_OK, DEVICE_CANCELLED or DEVICE_INVALID_PARAMETER.
          *
@@ -403,7 +430,7 @@ namespace codal
          * display.scroll(i,100,1);
          * @endcode
          */
-        int scroll(Image image, int delay = DISPLAY_DEFAULT_SCROLL_SPEED, int stride = DISPLAY_DEFAULT_SCROLL_STRIDE);
+        int scroll(Image image, int delay = DISPLAY_DEFAULT_SCROLL_SPEED, int stride = DISPLAY_DEFAULT_SCROLL_STRIDE, ManagedString imageName = "Unnamed image");
 
         /**
          * "Animates" the current image across the display with a given stride, finishing on the last frame of the animation.
@@ -419,6 +446,8 @@ namespace codal
          *                         to begin at. Defaults to DISPLAY_ANIMATE_DEFAULT_POS.
          *
          * @param autoClear defines whether or not the display is automatically cleared once the animation is complete. By default, the display is cleared. Set this parameter to zero to disable the autoClear operation.
+         * 
+         * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
          *
          * @return DEVICE_OK, DEVICE_BUSY if the screen is in use, or DEVICE_INVALID_PARAMETER.
          *
@@ -431,7 +460,7 @@ namespace codal
          * display.animateAsync(i,100,5);
          * @endcode
          */
-        int animateAsync(Image image, int delay, int stride, int startingPosition = DISPLAY_ANIMATE_DEFAULT_POS, int autoClear = DISPLAY_DEFAULT_AUTOCLEAR);
+        int animateAsync(Image image, int delay, int stride, int startingPosition = DISPLAY_ANIMATE_DEFAULT_POS, int autoClear = DISPLAY_DEFAULT_AUTOCLEAR, ManagedString imageName = "Unnamed image");
 
         /**
          * "Animates" the current image across the display with a given stride, finishing on the last frame of the animation.
@@ -446,6 +475,8 @@ namespace codal
          *                         to begin at. Defaults to DISPLAY_ANIMATE_DEFAULT_POS.
          *
          * @param autoClear defines whether or not the display is automatically cleared once the animation is complete. By default, the display is cleared. Set this parameter to zero to disable the autoClear operation.
+         * 
+         * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
          *
          * @return DEVICE_OK, DEVICE_CANCELLED or DEVICE_INVALID_PARAMETER.
          *
@@ -458,7 +489,18 @@ namespace codal
          * display.animate(i,100,5);
          * @endcode
          */
-        int animate(Image image, int delay, int stride, int startingPosition = DISPLAY_ANIMATE_DEFAULT_POS, int autoClear = DISPLAY_DEFAULT_AUTOCLEAR);
+        int animate(Image image, int delay, int stride, int startingPosition = DISPLAY_ANIMATE_DEFAULT_POS, int autoClear = DISPLAY_DEFAULT_AUTOCLEAR, ManagedString imageName = "Unnamed image");
+
+        /**
+         * Convenience getter: returns text associated with current animation mode (ie scrollingText if in ANIMATION_MODE_SCROLL_TEXT)
+         */
+        ManagedString getCurrentText();
+
+        /**
+         * Reads the current animation mode. 
+         * @return an enum representing the animation mode: ANIMATION_MODE_NONE, ANIMATION_MODE_STOPPED, ANIMATION_MODE_SCROLL_TEXT, ANIMATION_MODE_PRINT_TEXT, ANIMATION_MODE_SCROLL_IMAGE, ANIMATION_MODE_ANIMATE_IMAGE, ANIMATION_MODE_ANIMATE_IMAGE_WITH_CLEAR, ANIMATION_MODE_PRINT_CHARACTER, ANIMATION_MODE_PRINT_IMAGE
+         */
+        AnimationMode getAnimationMode();
 
         /**
          * Destructor for AnimatedDisplay, where we deregister this instance from the array of system components.

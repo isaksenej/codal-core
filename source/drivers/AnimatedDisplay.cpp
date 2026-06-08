@@ -95,7 +95,7 @@ void AnimatedDisplay::animationUpdate()
         if (animationMode == ANIMATION_MODE_ANIMATE_IMAGE || animationMode == ANIMATION_MODE_ANIMATE_IMAGE_WITH_CLEAR)
             this->updateAnimateImage();
 
-        if(animationMode == ANIMATION_MODE_PRINT_CHARACTER)
+        if(animationMode == ANIMATION_MODE_PRINT_CHARACTER || animationMode == ANIMATION_MODE_PRINT_IMAGE)
         {
             animationMode = ANIMATION_MODE_NONE;
             this->sendAnimationCompleteEvent();
@@ -119,6 +119,7 @@ void AnimatedDisplay::sendAnimationCompleteEvent()
 /**
   * Internal scrollText update method.
   * Shift the screen image by one pixel to the left. If necessary, paste in the next char.
+  * TODO: more granular events here?
   */
 void AnimatedDisplay::updateScrollText()
 {
@@ -181,6 +182,7 @@ void AnimatedDisplay::updateScrollText()
 /**
   * Internal printText update method.
   * Paste the next character in the string.
+  * TODO: more granular events here?
   */
 void AnimatedDisplay::updatePrintText()
 {
@@ -200,6 +202,7 @@ void AnimatedDisplay::updatePrintText()
 /**
   * Internal scrollImage update method.
   * Paste the stored bitmap at the appropriate point.
+  * TODO: more granular events here?
   */
 void AnimatedDisplay::updateScrollImage()
 {
@@ -220,6 +223,7 @@ void AnimatedDisplay::updateScrollImage()
 /**
   * Internal animateImage update method.
   * Paste the stored bitmap at the appropriate point and stop on the last frame.
+  * TODO: more granular events here?
   */
 void AnimatedDisplay::updateAnimateImage()
 {
@@ -263,6 +267,9 @@ void AnimatedDisplay::stopAnimation()
 
         // Indicate that we've completed an animation.
         Event(id,DISPLAY_EVT_ANIMATION_COMPLETE);
+
+        // Indicate that animation was forcibly terminated (for accessibility functions) 
+        Event(id,DISPLAY_EVT_ANIMATION_STOPPED);
 
         // Wake up aall fibers that may blocked on the animation (if any).
         Event(DEVICE_ID_NOTIFY, DISPLAY_EVT_FREE);
@@ -325,6 +332,11 @@ int AnimatedDisplay::printCharAsync(char c, int delay)
             animationDelay = delay;
             animationTick = 0;
             animationMode = ANIMATION_MODE_PRINT_CHARACTER;
+            // storing in printingText (for now?), as this method can't be accessed directly from makecode anyway.
+            // if you change this, also update getCurrentText() method. 
+            printingText = ManagedString(c);
+            // Signal that we've started an animation.
+            Event(id, DISPLAY_EVT_ANIMATION_STARTED);
         }
     }
     else
@@ -367,6 +379,8 @@ int AnimatedDisplay::printAsync(ManagedString s, int delay)
         animationTick = 0;
 
         animationMode = ANIMATION_MODE_PRINT_TEXT;
+        // Signal that we've started an animation.
+        Event(id, DISPLAY_EVT_ANIMATION_STARTED);
     }
     else
     {
@@ -389,13 +403,17 @@ int AnimatedDisplay::printAsync(ManagedString s, int delay)
   * @param alpha Treats the brightness level '0' as transparent. Defaults to 0.
   *
   * @param delay The time to delay between characters, in milliseconds. Defaults to 0.
+  * 
+  * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
+  * 
+  * TODO: update code snippet (I think it's straight-up wrong atm anyway)
   *
   * @code
   * Image i("1,1,1,1,1\n1,1,1,1,1\n");
-  * display.printprintAsync(i,400);
+  * display.printAsync(i,400);
   * @endcode
   */
-int AnimatedDisplay::printAsync(Image i, int x, int y, int alpha, int delay)
+int AnimatedDisplay::printAsync(Image i, int x, int y, int alpha, int delay, ManagedString imageName)
 {
     if(delay < 0)
         return DEVICE_INVALID_PARAMETER;
@@ -408,8 +426,13 @@ int AnimatedDisplay::printAsync(Image i, int x, int y, int alpha, int delay)
         {
             animationDelay = delay;
             animationTick = 0;
-            animationMode = ANIMATION_MODE_PRINT_CHARACTER;
+
+            animationMode = ANIMATION_MODE_PRINT_IMAGE;
+            printingImageName = imageName;
+            // Signal that we've started an animation.
+            Event(id, DISPLAY_EVT_ANIMATION_STARTED);
         }
+        //TODO: handle delay = 0
     }
     else
     {
@@ -519,6 +542,8 @@ int AnimatedDisplay::print(ManagedString s, int delay)
   * @param alpha Treats the brightness level '0' as transparent. Defaults to 0.
   *
   * @param delay The time to display the image for, or zero to show the image forever. Defaults to 0.
+  * 
+  * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
   *
   * @return DEVICE_OK, DEVICE_BUSY if the display is already in use, or DEVICE_INVALID_PARAMETER.
   *
@@ -527,7 +552,7 @@ int AnimatedDisplay::print(ManagedString s, int delay)
   * display.print(i,400);
   * @endcode
   */
-int AnimatedDisplay::print(Image i, int x, int y, int alpha, int delay)
+int AnimatedDisplay::print(Image i, int x, int y, int alpha, int delay, ManagedString imageName)
 {
     if(delay < 0)
         return DEVICE_INVALID_PARAMETER;
@@ -539,7 +564,7 @@ int AnimatedDisplay::print(Image i, int x, int y, int alpha, int delay)
     // If someone called stopAnimation(), then we simply skip...
     if (animationMode == ANIMATION_MODE_NONE)
     {
-        this->printAsync(i, x, y, alpha, delay);
+        this->printAsync(i, x, y, alpha, delay, imageName);
 
         if (delay > 0)
             fiberWait();
@@ -583,6 +608,8 @@ int AnimatedDisplay::scrollAsync(ManagedString s, int delay)
         animationDelay = delay;
         animationTick = 0;
         animationMode = ANIMATION_MODE_SCROLL_TEXT;
+        // Signal that we've started an animation.
+        Event(id, DISPLAY_EVT_ANIMATION_STARTED);
     }
     else
     {
@@ -602,6 +629,8 @@ int AnimatedDisplay::scrollAsync(ManagedString s, int delay)
   *              to: DISPLAY_DEFAULT_SCROLL_SPEED.
   *
   * @param stride The number of pixels to shift by in each update. Defaults to DISPLAY_DEFAULT_SCROLL_STRIDE.
+  * 
+  * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
   *
   * @return DEVICE_OK, DEVICE_BUSY if the display is already in use, or DEVICE_INVALID_PARAMETER.
   *
@@ -610,7 +639,7 @@ int AnimatedDisplay::scrollAsync(ManagedString s, int delay)
   * display.scrollAsync(i,100,1);
   * @endcode
   */
-int AnimatedDisplay::scrollAsync(Image image, int delay, int stride)
+int AnimatedDisplay::scrollAsync(Image image, int delay, int stride, ManagedString imageName)
 {
     //sanitise the delay value
     if(delay <= 0)
@@ -623,10 +652,14 @@ int AnimatedDisplay::scrollAsync(Image image, int delay, int stride)
         scrollingImageStride = stride;
         scrollingImage = image;
         scrollingImageRendered = false;
+        scrollingImageName = imageName;
 
         animationDelay = stride == 0 ? 0 : delay;
         animationTick = 0;
         animationMode = ANIMATION_MODE_SCROLL_IMAGE;
+
+        // Signal that we've started an animation.
+        Event(id, DISPLAY_EVT_ANIMATION_STARTED);
     }
     else
     {
@@ -688,6 +721,8 @@ int AnimatedDisplay::scroll(ManagedString s, int delay)
   *              to: DISPLAY_DEFAULT_SCROLL_SPEED.
   *
   * @param stride The number of pixels to shift by in each update. Defaults to DISPLAY_DEFAULT_SCROLL_STRIDE.
+  * 
+  * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
   *
   * @return DEVICE_OK, DEVICE_CANCELLED or DEVICE_INVALID_PARAMETER.
   *
@@ -696,7 +731,7 @@ int AnimatedDisplay::scroll(ManagedString s, int delay)
   * display.scroll(i,100,1);
   * @endcode
   */
-int AnimatedDisplay::scroll(Image image, int delay, int stride)
+int AnimatedDisplay::scroll(Image image, int delay, int stride, ManagedString imageName)
 {
     //sanitise the delay value
     if(delay <= 0)
@@ -710,7 +745,7 @@ int AnimatedDisplay::scroll(Image image, int delay, int stride)
     if (animationMode == ANIMATION_MODE_NONE)
     {
         // Start the effect.
-        this->scrollAsync(image, delay, stride);
+        this->scrollAsync(image, delay, stride, imageName);
 
         // Wait for completion.
         fiberWait();
@@ -737,6 +772,8 @@ int AnimatedDisplay::scroll(Image image, int delay, int stride)
   *                         to begin at. Defaults to DISPLAY_ANIMATE_DEFAULT_POS.
   *
   * @param autoClear defines whether or not the display is automatically cleared once the animation is complete. By default, the display is cleared. Set this parameter to zero to disable the autoClear operation.
+  * 
+  * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
   *
   * @return DEVICE_OK, DEVICE_BUSY if the screen is in use, or DEVICE_INVALID_PARAMETER.
   *
@@ -749,7 +786,7 @@ int AnimatedDisplay::scroll(Image image, int delay, int stride)
   * display.animateAsync(i,100,5);
   * @endcode
   */
-int AnimatedDisplay::animateAsync(Image image, int delay, int stride, int startingPosition, int autoClear)
+int AnimatedDisplay::animateAsync(Image image, int delay, int stride, int startingPosition, int autoClear, ManagedString imageName)
 {
     //sanitise the delay value
     if(delay <= 0)
@@ -766,10 +803,13 @@ int AnimatedDisplay::animateAsync(Image image, int delay, int stride, int starti
         scrollingImageStride = stride;
         scrollingImage = image;
         scrollingImageRendered = false;
+        scrollingImageName = imageName;
 
         animationDelay = stride == 0 ? 0 : delay;
         animationTick = delay-1;
         animationMode = autoClear ? ANIMATION_MODE_ANIMATE_IMAGE_WITH_CLEAR : ANIMATION_MODE_ANIMATE_IMAGE;
+        // Signal that we've started an animation.
+        Event(id, DISPLAY_EVT_ANIMATION_STARTED);
     }
     else
     {
@@ -792,6 +832,8 @@ int AnimatedDisplay::animateAsync(Image image, int delay, int stride, int starti
   *                         to begin at. Defaults to DISPLAY_ANIMATE_DEFAULT_POS.
   *
   * @param autoClear defines whether or not the display is automatically cleared once the animation is complete. By default, the display is cleared. Set this parameter to zero to disable the autoClear operation.
+  * 
+  * @param imageName the name of the image for accessibility functions. Defaults to "Unnamed image".
   *
   * @return DEVICE_OK, DEVICE_CANCELLED or DEVICE_INVALID_PARAMETER.
   *
@@ -804,7 +846,7 @@ int AnimatedDisplay::animateAsync(Image image, int delay, int stride, int starti
   * display.animate(i,100,5);
   * @endcode
   */
-int AnimatedDisplay::animate(Image image, int delay, int stride, int startingPosition, int autoClear)
+int AnimatedDisplay::animate(Image image, int delay, int stride, int startingPosition, int autoClear, ManagedString imageName)
 {
     //sanitise the delay value
     if(delay <= 0)
@@ -818,7 +860,7 @@ int AnimatedDisplay::animate(Image image, int delay, int stride, int startingPos
     if (animationMode == ANIMATION_MODE_NONE)
     {
         // Start the effect.
-        this->animateAsync(image, delay, stride, startingPosition, autoClear);
+        this->animateAsync(image, delay, stride, startingPosition, autoClear, imageName);
 
         // Wait for completion.
         //TODO: Put this in when we merge tight-validation
@@ -833,6 +875,32 @@ int AnimatedDisplay::animate(Image image, int delay, int stride, int startingPos
     return DEVICE_OK;
 }
 
+/** */
+ManagedString AnimatedDisplay::getCurrentText()
+{
+    if (animationMode == ANIMATION_MODE_NONE || animationMode == ANIMATION_MODE_STOPPED)
+        return "TODO: make active choice about handling NONE/STOPPED"; //could be null? or error message? idk. should they be separate?
+
+    if (animationMode == ANIMATION_MODE_SCROLL_TEXT)
+        return scrollingText;
+    
+    if (animationMode == ANIMATION_MODE_PRINT_TEXT || animationMode == ANIMATION_MODE_PRINT_CHARACTER)
+        return printingText;
+
+    if (animationMode == ANIMATION_MODE_SCROLL_IMAGE || animationMode == ANIMATION_MODE_ANIMATE_IMAGE || animationMode == ANIMATION_MODE_ANIMATE_IMAGE_WITH_CLEAR)
+        return scrollingImageName;
+
+    if (animationMode == ANIMATION_MODE_PRINT_IMAGE)
+        return printingImageName;
+
+    return "TODO: ERR: should never reach here";
+}
+
+/** */
+AnimationMode AnimatedDisplay::getAnimationMode()
+{
+    return animationMode;
+}
 
 /**
 * Frame update method, invoked periodically to update animations if neccessary.
