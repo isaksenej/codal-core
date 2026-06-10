@@ -33,8 +33,8 @@ DEALINGS IN THE SOFTWARE.
   */
 #define DISPLAY_EVT_ANIMATION_COMPLETE          1
 // new events: 
-#define DISPLAY_EVT_ANIMATION_STARTED           2
-#define DISPLAY_EVT_ANIMATION_STOPPED           3 // prematurely stopped - could maybe instead just use ANIMATION_MODE_COMPLETED? but then you'd have to handle every completed event and check status, which we probably don't want
+#define DISPLAY_EVT_ANIMATION_STARTED           5
+#define DISPLAY_EVT_ANIMATION_STOPPED           6 // prematurely stopped 
 
 //
 // Internal constants

@@ -119,7 +119,6 @@ void AnimatedDisplay::sendAnimationCompleteEvent()
 /**
   * Internal scrollText update method.
   * Shift the screen image by one pixel to the left. If necessary, paste in the next char.
-  * TODO: more granular events here?
   */
 void AnimatedDisplay::updateScrollText()
 {
@@ -182,7 +181,6 @@ void AnimatedDisplay::updateScrollText()
 /**
   * Internal printText update method.
   * Paste the next character in the string.
-  * TODO: more granular events here?
   */
 void AnimatedDisplay::updatePrintText()
 {
@@ -202,7 +200,6 @@ void AnimatedDisplay::updatePrintText()
 /**
   * Internal scrollImage update method.
   * Paste the stored bitmap at the appropriate point.
-  * TODO: more granular events here?
   */
 void AnimatedDisplay::updateScrollImage()
 {
@@ -223,7 +220,6 @@ void AnimatedDisplay::updateScrollImage()
 /**
   * Internal animateImage update method.
   * Paste the stored bitmap at the appropriate point and stop on the last frame.
-  * TODO: more granular events here?
   */
 void AnimatedDisplay::updateAnimateImage()
 {
@@ -879,7 +875,7 @@ int AnimatedDisplay::animate(Image image, int delay, int stride, int startingPos
 ManagedString AnimatedDisplay::getCurrentText()
 {
     if (animationMode == ANIMATION_MODE_NONE || animationMode == ANIMATION_MODE_STOPPED)
-        return "TODO: make active choice about handling NONE/STOPPED"; //could be null? or error message? idk. should they be separate?
+        return "ERR: Animation mode none"; //could be empty? or error message? idk. should they be separate?
 
     if (animationMode == ANIMATION_MODE_SCROLL_TEXT)
         return scrollingText;
@@ -893,7 +889,7 @@ ManagedString AnimatedDisplay::getCurrentText()
     if (animationMode == ANIMATION_MODE_PRINT_IMAGE)
         return printingImageName;
 
-    return "TODO: ERR: should never reach here";
+    return "ERR: Unknown animation mode";
 }
 
 /** */
