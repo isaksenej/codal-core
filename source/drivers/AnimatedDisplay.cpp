@@ -599,6 +599,7 @@ int AnimatedDisplay::scrollAsync(ManagedString s, int delay)
     {
         scrollingPosition = 0;
         scrollingChar = 0;
+        scrollingText = s; 
 
         animationDelay = delay;
         animationTick = 0;
