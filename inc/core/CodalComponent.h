@@ -79,9 +79,6 @@ DEALINGS IN THE SOFTWARE.
 #define DEVICE_ID_VIRTUAL_SPEAKER_PIN 43
 #define DEVICE_ID_LOG                 44
 
-// deeply dubious ID that I've just added onto the end unilaterally
-#define DEVICE_ID_ACCESSIBILITY       45
-
 // Suggested range for device-specific IDs: 50-79
 // NOTE - not final, just suggested currently.
 
